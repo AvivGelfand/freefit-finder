@@ -1,26 +1,390 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FreeFit Finder - מאתר חדרי הכושר בישראל</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet">
-    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+    <title>Club Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=10">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        #container {
+            display: flex;
+            height: 100%;
+        }
+        
+        #map {
+            flex: 1;
+            z-index: 1;
+        }
+        
+        #sidebar {
+            width: 0;
+            background: white;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            transition: width 0.3s ease;
+            z-index: 2;
+        }
+        
+        #sidebar.active {
+            width: 300px;
+        }
+        
+        .sidebar-content {
+            padding: 20px;
+            display: none;
+        }
+        
+        #sidebar.active .sidebar-content {
+            display: block;
+        }
+        
+        .close-btn {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+            color: #666;
+        }
+        
+        .club-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .club-info {
+            margin-bottom: 15px;
+        }
+        
+        .info-label {
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .tag {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin: 2px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .read-more-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s;
+        }
+        
+        .read-more-btn:hover {
+            background: #0056b3;
+        }
+        
+        .about-section {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            #sidebar.active {
+                width: 100%;
+                position: absolute;
+                height: 100%;
+            }
+        }
+        
+        .location-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: nowrap;
+            pointer-events: none;
+            display: none;
+        }
+
+        .marker-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /*
+        .custom-marker {
+            width: 12px;
+            height: 12px;
+            background-color: #007bff;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        */
+
+        .custom-control {
+            background: white;
+            padding: 5px;
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .custom-control:hover {
+            background: #f4f4f4;
+        }
+
+        .hover-tooltip {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .hover-tooltip .leaflet-popup-content-wrapper {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            padding: 4px 10px;
+        }
+
+        .hover-tooltip .leaflet-popup-tip {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .hover-tooltip .leaflet-popup-content {
+            margin: 5px;
+        }
+
+        .hover-content .hover-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .hover-content .hover-address {
+            font-size: 12px;
+            color: #ccc;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>FreeFit Finder</h1>
-            <p>מצא חדרי כושר בסביבתך</p>
-        </header>
-        <div class="search-container">
-            <input type="text" id="search" placeholder="חפש לפי עיר או שם">
-            <button onclick="searchClubs()">חפש</button>
-        </div>
+    <div id="container">
         <div id="map"></div>
-        <div id="results"></div>
+        <div id="sidebar">
+            <div class="sidebar-content">
+                <span class="close-btn">&times;</span>
+                <div class="club-title"></div>
+                <div class="club-info"></div>
+            </div>
+        </div>
     </div>
-    <script src="script.js"></script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([31.7683, 35.2137], 10);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        function showClubDetails(club) {
+            const sidebar = document.getElementById('sidebar');
+            const content = sidebar.querySelector('.sidebar-content');
+            const titleDiv = content.querySelector('.club-title');
+            const infoDiv = content.querySelector('.club-info');
+            
+            // Clear previous content
+            titleDiv.textContent = club.title;
+            infoDiv.innerHTML = '';
+            
+            // Add address if available
+            if (club.address) {
+                infoDiv.innerHTML += `
+                    <div class="info-section">
+                        <div class="info-label">Address</div>
+                        <div>${club.address}</div>
+                    </div>`;
+            }
+            
+            // Add phone if available
+            if (club.phone) {
+                infoDiv.innerHTML += `
+                    <div class="info-section">
+                        <div class="info-label">Phone</div>
+                        <div>${club.phone}</div>
+                    </div>`;
+            }
+            
+            // Add tags if available
+            if (club.tags && club.tags.length > 0) {
+                infoDiv.innerHTML += `
+                    <div class="info-section">
+                        <div class="info-label">Tags</div>
+                        <div>${club.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+                    </div>`;
+            }
+            
+            // Add about section if available
+            if (club.about) {
+                infoDiv.innerHTML += `
+                    <div class="info-section">
+                        <button class="read-more-btn">Read More</button>
+                        <div class="about-section">
+                            <div class="info-label">About</div>
+                            <div>${club.about}</div>
+                        </div>
+                    </div>`;
+                
+                // Add click handler for read more button
+                const readMoreBtn = infoDiv.querySelector('.read-more-btn');
+                const aboutSection = infoDiv.querySelector('.about-section');
+                readMoreBtn.addEventListener('click', () => {
+                    if (aboutSection.style.display === 'block') {
+                        aboutSection.style.display = 'none';
+                        readMoreBtn.textContent = 'Read More';
+                    } else {
+                        aboutSection.style.display = 'block';
+                        readMoreBtn.textContent = 'Show Less';
+                    }
+                });
+            }
+            
+            sidebar.classList.add('active');
+        }
+
+        // Close sidebar when clicking the close button
+        document.querySelector('.close-btn').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.remove('active');
+        });
+
+        // Function to create a custom marker with label
+        function createMarkerWithLabel(club, latlng) {
+            // Create a larger default icon
+            var largerIcon = L.icon({
+                iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+                iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+                shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+                iconSize: [35, 45],     // Original is [25, 41]
+                iconAnchor: [17, 45],   // Adjusted to match new size
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+
+            // Create marker with larger icon
+            var marker = L.marker(latlng, { icon: largerIcon });
+            
+            // Add permanent label as tooltip
+            marker.bindTooltip(club.title, {
+                permanent: true,
+                direction: 'top',
+                offset: [0, -45],
+                className: 'location-label'
+            });
+
+            // Create hover content with title and address
+            const hoverContent = `
+                <div class="hover-content">
+                    <div class="hover-title">${club.title}</div>
+                    ${club.address ? `<div class="hover-address">${club.address}</div>` : ''}
+                </div>
+            `;
+
+            // Add hover tooltip with both title and address
+            marker.bindPopup(hoverContent, {
+                offset: [0, -30],
+                closeButton: false,
+                className: 'hover-tooltip'
+            });
+
+            // Show popup on hover
+            marker.on('mouseover', function (e) {
+                this.openPopup();
+            });
+            marker.on('mouseout', function (e) {
+                this.closePopup();
+            });
+
+            // Add click handler
+            marker.on('click', () => showClubDetails(club));
+            
+            return marker;
+        }
+
+        // Fetch and display clubs
+        fetch('/api/clubs')
+            .then(response => response.json())
+            .then(clubs => {
+                clubs.forEach(club => {
+                    if (club.lat_lng) {
+                        var lat = club.lat_lng[0];
+                        var lng = club.lat_lng[1];
+                        
+                        // Create and add marker with label
+                        var marker = createMarkerWithLabel(club, [lat, lng]);
+                        marker.addTo(map);
+                    }
+                });
+                
+                // Trigger initial zoom check after all markers are added
+                map.fireEvent('zoomend');
+            })
+            .catch(error => console.error('Error fetching club data:', error));
+
+        // Create custom control for labels toggle
+        L.Control.LabelToggle = L.Control.extend({
+            onAdd: function(map) {
+                var container = L.DomUtil.create('div', 'custom-control');
+                container.innerHTML = '👁️ Labels';
+                container.title = 'Toggle Labels';
+                
+                L.DomEvent.on(container, 'click', function() {
+                    var markers = document.getElementsByClassName('leaflet-tooltip');
+                    Array.from(markers).forEach(function(element) {
+                        if (element.style.display === 'none') {
+                            element.style.display = 'block';
+                        } else {
+                            element.style.display = 'none';
+                        }
+                    });
+                });
+                
+                return container;
+            }
+        });
+
+        // Add the control to the map
+        new L.Control.LabelToggle({ position: 'topleft' }).addTo(map);
+
+        // Modify the existing zoomend event handler
+        map.on('zoomend', function() {
+            // Remove or comment out the automatic zoom-based display logic
+            // var currentZoom = map.getZoom();
+            // var markers = document.getElementsByClassName('leaflet-tooltip');
+            // Array.from(markers).forEach(function(element) {
+            //     element.style.display = currentZoom > 14 ? 'block' : 'none';
+            // });
+        });
+    </script>
 </body>
-</html> 
+</html>
