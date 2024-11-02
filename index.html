@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Clubs Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet/dist/leaflet.css"
+    />
+
+    <style>
+        #map {
+            height: 100vh;
+            margin: 0;
+        }
+        body, html {
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Leaflet JavaScript -->
+    <script
+        src="https://unpkg.com/leaflet/dist/leaflet.js"
+    ></script>
+
+    <!-- Load and display the map with clubs -->
+    <script>
+        // Initialize the map centered over Israel
+        var map = L.map('map').setView([31.0461, 34.8516], 10);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+        }).addTo(map);
+
+        // Load clubs.json and add markers to the map
+        fetch('clubs.json')
+            .then((response) => response.json())
+            .then((data) => {
+                // Iterate over each club and place a marker
+                Object.keys(data).forEach((key) => {
+                    var club = data[key];
+                    var latlng = club.lat_lng;
+                    var title = club.title;
+                    var address = club.address;
+                    var about = club.about;
+
+                    // Create a marker and add it to the map
+                    var marker = L.marker(latlng).addTo(map);
+
+                    // Bind a popup to the marker with club information
+                    marker.bindPopup(
+                        '<b>' +
+                            title +
+                            '</b><br>' +
+                            address +
+                            '<br>' +
+                            about
+                    );
+                });
+            })
+            .catch((error) => {
+                console.error('Error loading clubs.json:', error);
+            });
+    </script>
+</body>
+</html> 
