@@ -12,17 +12,24 @@
     />
 
     <style>
-        #map {
-            height: 100vh;
-            margin: 0;
-        }
         body, html {
             height: 100%;
             margin: 0;
         }
+        #search {
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        #map {
+            height: calc(100% - 50px);
+        }
     </style>
 </head>
 <body>
+    <input type="text" id="search" placeholder="Search clubs..." />
+
     <div id="map"></div>
 
     <!-- Leaflet JavaScript -->
@@ -41,35 +48,78 @@
                 '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
         }).addTo(map);
 
-        // Load clubs.json and add markers to the map
+        var markers = [];
+        var clubsData = {};
+
+        // Function to add markers to the map
+        function addMarkers(data) {
+            // Clear existing markers
+            markers.forEach(function(marker) {
+                map.removeLayer(marker);
+            });
+            markers = [];
+
+            // Iterate over each club and place a marker
+            Object.keys(data).forEach(function(key) {
+                var club = data[key];
+                var latlng = club.lat_lng;
+                var title = club.title;
+                var address = club.address;
+                var about = club.about;
+                var tags = club.tags;
+
+                // Create a marker and add it to the map
+                var marker = L.marker(latlng).addTo(map);
+
+                // Create HTML content for the popup
+                var popupContent = '<b>' + title + '</b><br>' +
+                    address + '<br>' +
+                    about + '<br>' +
+                    '<b>Tags:</b> ' + tags.join(', ');
+
+                // Bind a popup to the marker with club information
+                marker.bindPopup(popupContent);
+
+                markers.push(marker);
+            });
+        }
+
+        // Load clubs.json and store data
         fetch('clubs.json')
             .then((response) => response.json())
             .then((data) => {
-                // Iterate over each club and place a marker
-                Object.keys(data).forEach((key) => {
-                    var club = data[key];
-                    var latlng = club.lat_lng;
-                    var title = club.title;
-                    var address = club.address;
-                    var about = club.about;
-
-                    // Create a marker and add it to the map
-                    var marker = L.marker(latlng).addTo(map);
-
-                    // Bind a popup to the marker with club information
-                    marker.bindPopup(
-                        '<b>' +
-                            title +
-                            '</b><br>' +
-                            address +
-                            '<br>' +
-                            about
-                    );
-                });
+                clubsData = data;
+                addMarkers(clubsData);
             })
             .catch((error) => {
                 console.error('Error loading clubs.json:', error);
             });
+
+        // Handle search input
+        document.getElementById('search').addEventListener('input', function(e) {
+            var query = e.target.value.toLowerCase();
+
+            // Filter clubs based on the query
+            var filteredData = {};
+            Object.keys(clubsData).forEach(function(key) {
+                var club = clubsData[key];
+                var title = club.title.toLowerCase();
+                var address = club.address.toLowerCase();
+                var about = club.about.toLowerCase();
+                var tags = club.tags.join(' ').toLowerCase();
+
+                if (
+                    title.includes(query) ||
+                    address.includes(query) ||
+                    about.includes(query) ||
+                    tags.includes(query)
+                ) {
+                    filteredData[key] = club;
+                }
+            });
+
+            addMarkers(filteredData);
+        });
     </script>
 </body>
 </html> 
